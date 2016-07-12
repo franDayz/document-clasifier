@@ -26,7 +26,9 @@ object DocumentClassifier {
 
     val sc = SparkContext.getOrCreate(conf)
     val documents = getDocuments(sc, basePath, inputFiles)
+
     val tokenizedDocs = documents.map(doc => doc.split(","))
+
     val stopWords = sc.textFile(getFullPath(stopWordsFile, basePath))
     val dictionary = buildDictionary(sc, tokenizedDocs, stopWords)
 
@@ -54,7 +56,7 @@ object DocumentClassifier {
       case(cluster, tweets) =>
         println("========")
         println(cluster)
-        tweets.map(tweet => tweet._1).foreach(println)
+        tweets.take(10).map(tweet => tweet._1).foreach(println)
     }
   }
 
@@ -75,6 +77,9 @@ object DocumentClassifier {
                       tokenizedDocs: RDD[Array[String]],
                       stopWords: RDD[String]): Broadcast[Map[String, Long]] = {
     val allWords = tokenizedDocs.flatMap(w => w)
+      .filter(w => w.matches("\\D+"))
+      .map(w => w.toLowerCase)
+
     val stopWordsSet = stopWords.collect().toSet
     val withoutStopWords = allWords.filter(w => !stopWordsSet.contains(w))
     val wordCounts = withoutStopWords.map(w => (w, 1)).reduceByKey(_ + _)
